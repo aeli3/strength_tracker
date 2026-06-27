@@ -1,98 +1,126 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
+import { useState } from 'react';
+import { Platform, StyleSheet, Text, View } from 'react-native';
+import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { SymbolView } from 'expo-symbols';
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
-
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
-    return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
-    );
-  }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
-  return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
-  );
-}
+import { AnimatedPressable } from '@/components/ui/animated-pressable';
+import { Fonts, Spacing, Typography } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
+import { SearchBar } from '@/features/exercises/components/search-bar';
+import { MuscleGroupFilter } from '@/features/exercises/components/muscle-group-filter';
+import { ExerciseSectionList } from '@/features/exercises/components/exercise-section-list';
+import { HomeStatsBar } from '@/features/exercises/components/home-stats-bar';
+import { useExerciseFilter } from '@/features/exercises/hooks/use-exercise-filter';
+import { useExerciseHomeStats } from '@/features/exercises/hooks/use-exercise-home-stats';
+import { SettingsModal } from '@/features/settings/components/settings-modal';
+import type { Exercise } from '@/features/exercises/types';
 
 export default function HomeScreen() {
+  const colors = useTheme();
+  const { query, setQuery, selectedGroup, setSelectedGroup, sections } = useExerciseFilter();
+  const { stats, loading: statsLoading } = useExerciseHomeStats();
+  const [settingsVisible, setSettingsVisible] = useState(false);
+
+  function handleExercisePress(exercise: Exercise) {
+    router.push({ pathname: '/exercise/[id]', params: { id: exercise.id } });
+  }
+
   return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
-          </ThemedText>
-        </ThemedView>
+    <SafeAreaView
+      edges={['top', 'left', 'right']}
+      style={[styles.container, { backgroundColor: colors.background }]}
+    >
+      <View style={styles.header}>
+        <View style={styles.titleRow}>
+          <View>
+            <Text style={[styles.eyebrow, { color: colors.textSecondary, fontFamily: Fonts?.sans }]}>
+              Strength Tracker
+            </Text>
+            <Text style={[styles.title, { color: colors.text, fontFamily: Fonts?.rounded }]}>
+              Exercises
+            </Text>
+          </View>
 
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
+          <AnimatedPressable
+            accessibilityRole="button"
+            accessibilityLabel="Open settings"
+            hitSlop={8}
+            onPress={() => setSettingsVisible(true)}
+            android_ripple={{ color: colors.backgroundSelected, borderless: false }}
+            pressedScale={0.94}
+            style={[
+              styles.settingsButton,
+              {
+                backgroundColor: colors.backgroundElement,
+              },
+            ]}
+          >
+            {Platform.OS === 'ios' ? (
+              <SymbolView name="gearshape" size={18} tintColor={colors.text} />
+            ) : (
+              <Text style={[styles.settingsText, { color: colors.text }]}>...</Text>
+            )}
+          </AnimatedPressable>
+        </View>
 
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
-          />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
+        <HomeStatsBar stats={stats} loading={statsLoading} />
 
-        {Platform.OS === 'web' && <WebBadge />}
-      </SafeAreaView>
-    </ThemedView>
+        <View style={styles.searchWrapper}>
+          <SearchBar value={query} onChangeText={setQuery} />
+        </View>
+      </View>
+
+      <View style={styles.filterWrapper}>
+        <MuscleGroupFilter selected={selectedGroup} onSelect={setSelectedGroup} />
+      </View>
+
+      <ExerciseSectionList sections={sections} onExercisePress={handleExercisePress} />
+
+      <SettingsModal visible={settingsVisible} onClose={() => setSettingsVisible(false)} />
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    flexDirection: 'row',
   },
-  safeArea: {
-    flex: 1,
+  header: {
     paddingHorizontal: Spacing.four,
-    alignItems: 'center',
+    paddingTop: Spacing.four,
+    paddingBottom: Spacing.three,
     gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
   },
-  heroSection: {
+  titleRow: {
+    minHeight: 48,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
+    justifyContent: 'space-between',
+    gap: Spacing.three,
+  },
+  eyebrow: {
+    ...Typography.eyebrow,
+    marginBottom: Spacing.one,
   },
   title: {
-    textAlign: 'center',
+    ...Typography.title,
   },
-  code: {
-    textTransform: 'uppercase',
+  settingsButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 20,
   },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
+  settingsText: {
+    ...Typography.body,
+    fontWeight: '700',
+  },
+  searchWrapper: {
+    minHeight: 46,
+  },
+  filterWrapper: {
+    paddingBottom: Spacing.three,
   },
 });

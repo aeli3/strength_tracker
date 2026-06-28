@@ -42,6 +42,7 @@ export async function getExercises() {
   const rows = await db.getAllAsync<ExerciseRow>(
     `SELECT id, name, muscle_group, source, created_at
      FROM exercises
+     WHERE deleted_at IS NULL
      ORDER BY
        CASE muscle_group
          WHEN 'Chest' THEN 1
@@ -65,7 +66,8 @@ export async function getExerciseById(exerciseId: string) {
   const row = await db.getFirstAsync<ExerciseRow>(
     `SELECT id, name, muscle_group, source, created_at
      FROM exercises
-     WHERE id = ?`,
+     WHERE id = ?
+       AND deleted_at IS NULL`,
     exerciseId,
   );
 
@@ -87,6 +89,46 @@ export async function createExercise(input: { name: string; muscleGroup: TargetM
   );
 
   return { id, name: input.name.trim(), muscleGroup: input.muscleGroup };
+}
+
+export async function updateExercise(
+  exerciseId: string,
+  input: { name: string; muscleGroup: TargetMuscleGroup },
+) {
+  const db = await getDatabase();
+  const name = input.name.trim();
+
+  await db.runAsync(
+    `UPDATE exercises
+     SET name = ?, muscle_group = ?
+     WHERE id = ?`,
+    name,
+    input.muscleGroup,
+    exerciseId,
+  );
+
+  return { id: exerciseId, name, muscleGroup: input.muscleGroup };
+}
+
+export async function deleteExercise(exerciseId: string) {
+  const db = await getDatabase();
+  const sessionRows = await db.getAllAsync<SessionRow>(
+    `SELECT id, exercise_id, logged_at, created_at
+     FROM exercise_sessions
+     WHERE exercise_id = ?`,
+    exerciseId,
+  );
+  const sessionIds = sessionRows.map(row => row.id);
+
+  await db.withTransactionAsync(async () => {
+    if (sessionIds.length > 0) {
+      const placeholders = sessionIds.map(() => '?').join(', ');
+      await db.runAsync(`DELETE FROM exercise_sets WHERE session_id IN (${placeholders})`, ...sessionIds);
+    }
+
+    await db.runAsync('DELETE FROM exercise_sessions WHERE exercise_id = ?', exerciseId);
+    await db.runAsync('UPDATE exercises SET deleted_at = ? WHERE id = ?', new Date().toISOString(), exerciseId);
+  });
 }
 
 export async function getExerciseSessions(exerciseId: string) {
@@ -205,6 +247,40 @@ export async function createExerciseSession(exerciseId: string, set: Omit<Exerci
   return sessionId;
 }
 
+export async function updateExerciseSession(sessionId: string, set: Omit<ExerciseSet, 'id'>) {
+  const db = await getDatabase();
+  const existingSet = await db.getFirstAsync<SetRow>(
+    `SELECT id, session_id, position, weight, reps
+     FROM exercise_sets
+     WHERE session_id = ?
+     ORDER BY position ASC
+     LIMIT 1`,
+    sessionId,
+  );
+
+  if (!existingSet) {
+    const setId = createId('set');
+    await db.runAsync(
+      `INSERT INTO exercise_sets (id, session_id, position, weight, reps)
+       VALUES (?, ?, 0, ?, ?)`,
+      setId,
+      sessionId,
+      set.weight,
+      set.reps,
+    );
+    return;
+  }
+
+  await db.runAsync(
+    `UPDATE exercise_sets
+     SET weight = ?, reps = ?
+     WHERE id = ?`,
+    set.weight,
+    set.reps,
+    existingSet.id,
+  );
+}
+
 export async function deleteExerciseSession(sessionId: string) {
   const db = await getDatabase();
 
@@ -222,7 +298,8 @@ async function getDatabase() {
         name TEXT NOT NULL,
         muscle_group TEXT NOT NULL,
         source TEXT NOT NULL DEFAULT 'seed',
-        created_at TEXT NOT NULL
+        created_at TEXT NOT NULL,
+        deleted_at TEXT
       );
 
       CREATE TABLE IF NOT EXISTS exercise_sessions (
@@ -247,12 +324,22 @@ async function getDatabase() {
         ON exercise_sets (session_id, position ASC);
     `);
 
+    await ensureDeletedExerciseColumn(db);
     await seedExercises(db);
 
     return db;
   });
 
   return databasePromise;
+}
+
+async function ensureDeletedExerciseColumn(db: SQLiteDatabase) {
+  const columns = await db.getAllAsync<{ name: string }>('PRAGMA table_info(exercises)');
+  const hasDeletedAt = columns.some(column => column.name === 'deleted_at');
+
+  if (!hasDeletedAt) {
+    await db.execAsync('ALTER TABLE exercises ADD COLUMN deleted_at TEXT');
+  }
 }
 
 async function seedExercises(db: SQLiteDatabase) {

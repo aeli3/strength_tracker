@@ -1,5 +1,5 @@
-import { Stack, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { Stack, useFocusEffect, useLocalSearchParams, router } from 'expo-router';
+import { useCallback, useState } from 'react';
 
 import { useTheme } from '@/hooks/use-theme';
 import { Fonts } from '@/constants/theme';
@@ -12,29 +12,36 @@ export default function ExerciseScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [exercise, setExercise] = useState<Exercise | undefined>();
 
-  useEffect(() => {
-    let mounted = true;
+  useFocusEffect(
+    useCallback(() => {
+      let mounted = true;
 
-    async function loadExercise() {
-      if (!id) {
+      async function loadExercise() {
+        if (!id) {
+          setExercise(undefined);
+          return;
+        }
+
         setExercise(undefined);
-        return;
+        const nextExercise = await getExerciseById(id);
+
+        if (mounted) {
+          if (!nextExercise) {
+            router.replace('/');
+            return;
+          }
+
+          setExercise(nextExercise);
+        }
       }
 
-      setExercise(undefined);
-      const nextExercise = await getExerciseById(id);
+      loadExercise();
 
-      if (mounted) {
-        setExercise(nextExercise);
-      }
-    }
-
-    loadExercise();
-
-    return () => {
-      mounted = false;
-    };
-  }, [id]);
+      return () => {
+        mounted = false;
+      };
+    }, [id]),
+  );
 
   return (
     <>

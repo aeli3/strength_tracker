@@ -1,22 +1,22 @@
+import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { ActionBottomSheet } from '@/components/ui/action-bottom-sheet';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useExerciseSessions } from '../hooks/use-exercise-sessions';
-import type { Exercise, ExerciseSet } from '../types';
+import type { Exercise, ExerciseSession } from '../types';
 import {
   getBestDate,
   getBestSet,
-  getFirstSet,
   getPrCountThisMonth,
 } from '../utils/session-stats';
 import { ExerciseBestCard } from './exercise-best-card';
 import { ExerciseDetailHeader } from './exercise-detail-header';
 import { ExerciseSessionTimeline } from './exercise-session-timeline';
 import { LogLiftButton } from './log-lift-button';
-import { LogLiftSheet } from './log-lift-sheet';
 
 interface ExerciseDetailScreenProps {
   exercise: Exercise;
@@ -24,15 +24,26 @@ interface ExerciseDetailScreenProps {
 
 export function ExerciseDetailScreen({ exercise }: ExerciseDetailScreenProps) {
   const colors = useTheme();
-  const [sheetVisible, setSheetVisible] = useState(false);
-  const { sessions, loading, error, saveSession, deleteSession } = useExerciseSessions(exercise.id);
+  const [activeSessionId, setActiveSessionId] = useState<string | undefined>();
+  const [actionSession, setActionSession] = useState<ExerciseSession | undefined>();
+  const { sessions, loading, error, deleteSession } = useExerciseSessions(exercise.id);
   const bestSet = useMemo(() => getBestSet(sessions), [sessions]);
   const bestDate = useMemo(() => getBestDate(sessions, bestSet), [bestSet, sessions]);
-  const recentSet = useMemo(() => getFirstSet(sessions), [sessions]);
   const prsThisMonth = useMemo(() => getPrCountThisMonth(sessions), [sessions]);
 
-  async function handleSave(set: Omit<ExerciseSet, 'id'>) {
-    await saveSession(set);
+  function handleSessionLongPress(session: ExerciseSession) {
+    setActionSession(session);
+    setActiveSessionId(session.id);
+  }
+
+  function handleSessionPressStateChange(session: ExerciseSession, active: boolean) {
+    setActiveSessionId(current => {
+      if (active) {
+        return session.id;
+      }
+
+      return current === session.id ? undefined : current;
+    });
   }
 
   return (
@@ -45,7 +56,9 @@ export function ExerciseDetailScreen({ exercise }: ExerciseDetailScreenProps) {
 
         <View style={styles.stickyTop}>
           <ExerciseBestCard bestSet={bestSet} bestDate={bestDate} prsThisMonth={prsThisMonth} />
-          <LogLiftButton onPress={() => setSheetVisible(true)} />
+          <LogLiftButton
+            onPress={() => router.push({ pathname: '/log-create', params: { exerciseId: exercise.id } })}
+          />
         </View>
 
         <View style={[styles.divider, { backgroundColor: colors.backgroundElement }]} />
@@ -54,16 +67,45 @@ export function ExerciseDetailScreen({ exercise }: ExerciseDetailScreenProps) {
           sessions={sessions}
           loading={loading}
           error={error}
-          onDeleteSession={deleteSession}
+          selectedSessionId={actionSession?.id ?? activeSessionId}
+          onSessionLongPress={handleSessionLongPress}
+          onSessionPressStateChange={handleSessionPressStateChange}
         />
       </View>
 
-      <LogLiftSheet
-        visible={sheetVisible}
-        bestSet={bestSet}
-        recentSet={recentSet}
-        onClose={() => setSheetVisible(false)}
-        onSave={handleSave}
+      <ActionBottomSheet
+        visible={Boolean(actionSession)}
+        title={actionSession?.dateLabel ?? 'Log'}
+        onClose={() => {
+          setActionSession(undefined);
+          setActiveSessionId(undefined);
+        }}
+        actions={[
+          {
+            id: 'edit',
+            title: 'Edit log',
+            icon: 'pencil',
+            onPress: () => {
+              if (actionSession) {
+                router.push({
+                  pathname: '/log-edit',
+                  params: { exerciseId: exercise.id, sessionId: actionSession.id },
+                });
+              }
+            },
+          },
+          {
+            id: 'delete',
+            title: 'Delete log',
+            icon: 'trash',
+            destructive: true,
+            onPress: () => {
+              if (actionSession) {
+                void deleteSession(actionSession.id);
+              }
+            },
+          },
+        ]}
       />
     </SafeAreaView>
   );

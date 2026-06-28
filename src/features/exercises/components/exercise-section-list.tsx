@@ -9,9 +9,20 @@ import { ExerciseRow } from './exercise-row';
 interface ExerciseSectionListProps {
   sections: ExerciseSection[];
   onExercisePress: (exercise: Exercise) => void;
+  onExerciseLongPress?: (exercise: Exercise) => void;
+  onExercisePressStateChange?: (exercise: Exercise, active: boolean) => void;
+  onListTouchStart?: () => void;
+  selectedExerciseId?: string;
 }
 
-export function ExerciseSectionList({ sections, onExercisePress }: ExerciseSectionListProps) {
+export function ExerciseSectionList({
+  sections,
+  onExercisePress,
+  onExerciseLongPress,
+  onExercisePressStateChange,
+  onListTouchStart,
+  selectedExerciseId,
+}: ExerciseSectionListProps) {
   const colors = useTheme();
 
   return (
@@ -20,6 +31,8 @@ export function ExerciseSectionList({ sections, onExercisePress }: ExerciseSecti
       keyExtractor={item => item.id}
       stickySectionHeadersEnabled
       keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
+      onTouchStart={onListTouchStart}
       contentInsetAdjustmentBehavior="automatic"
       style={[styles.list, { backgroundColor: colors.background }]}
       renderSectionHeader={({ section }) => (
@@ -46,6 +59,9 @@ export function ExerciseSectionList({ sections, onExercisePress }: ExerciseSecti
           <ExerciseRow
             exercise={item}
             onPress={onExercisePress}
+            onLongPress={onExerciseLongPress}
+            onPressStateChange={onExercisePressStateChange}
+            selected={selectedExerciseId === item.id}
             showSeparator={index < section.data.length - 1}
           />
         </Animated.View>

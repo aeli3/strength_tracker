@@ -9,10 +9,20 @@ import type { Exercise } from '../types';
 interface ExerciseRowProps {
   exercise: Exercise;
   onPress: (exercise: Exercise) => void;
+  onLongPress?: (exercise: Exercise) => void;
+  onPressStateChange?: (exercise: Exercise, active: boolean) => void;
+  selected?: boolean;
   showSeparator?: boolean;
 }
 
-export function ExerciseRow({ exercise, onPress, showSeparator = true }: ExerciseRowProps) {
+export function ExerciseRow({
+  exercise,
+  onPress,
+  onLongPress,
+  onPressStateChange,
+  selected = false,
+  showSeparator = true,
+}: ExerciseRowProps) {
   const colors = useTheme();
   const { resolvedTheme } = useThemePreference();
   const iconColors = getExerciseIconColors(exercise.id, ExerciseIconColors[resolvedTheme]);
@@ -21,13 +31,17 @@ export function ExerciseRow({ exercise, onPress, showSeparator = true }: Exercis
   return (
     <AnimatedPressable
       onPress={() => onPress(exercise)}
+      onLongPress={() => onLongPress?.(exercise)}
+      onPressIn={() => onPressStateChange?.(exercise, true)}
+      onPressOut={() => onPressStateChange?.(exercise, false)}
       android_ripple={{ color: colors.backgroundSelected }}
-      pressedOpacity={0.9}
+      pressedOpacity={0.82}
+      pressedScale={0.985}
       style={[
         styles.card,
         {
-          backgroundColor: colors.backgroundElement,
-          borderColor: colors.backgroundSelected,
+          backgroundColor: selected ? colors.backgroundSelected : colors.backgroundElement,
+          borderColor: selected ? colors.accent : colors.backgroundSelected,
           marginBottom: showSeparator ? Spacing.two : Spacing.three,
         },
       ]}

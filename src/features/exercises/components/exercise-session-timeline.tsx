@@ -11,14 +11,18 @@ interface ExerciseSessionTimelineProps {
   sessions: ExerciseSession[];
   loading: boolean;
   error?: Error;
-  onDeleteSession: (sessionId: string) => void;
+  selectedSessionId?: string;
+  onSessionLongPress: (session: ExerciseSession) => void;
+  onSessionPressStateChange?: (session: ExerciseSession, active: boolean) => void;
 }
 
 export function ExerciseSessionTimeline({
   sessions,
   loading,
   error,
-  onDeleteSession,
+  selectedSessionId,
+  onSessionLongPress,
+  onSessionPressStateChange,
 }: ExerciseSessionTimelineProps) {
   const colors = useTheme();
   const emptyLabel = error ? 'Unable to load sessions' : loading ? 'Loading sessions' : 'No sessions yet';
@@ -45,7 +49,9 @@ export function ExerciseSessionTimeline({
             <ExerciseSessionRow
               session={session}
               isLast={index === sessions.length - 1}
-              onDelete={onDeleteSession}
+              selected={selectedSessionId === session.id}
+              onLongPress={onSessionLongPress}
+              onPressStateChange={onSessionPressStateChange}
             />
           </Animated.View>
         ))

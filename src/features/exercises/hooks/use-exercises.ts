@@ -1,7 +1,12 @@
 import { useCallback, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 
-import { createExercise, getExercises } from '../services/exercise-session-store';
+import {
+  createExercise,
+  deleteExercise,
+  getExercises,
+  updateExercise,
+} from '../services/exercise-session-store';
 import type { Exercise, TargetMuscleGroup } from '../types';
 
 interface ExercisesState {
@@ -9,6 +14,11 @@ interface ExercisesState {
   loading: boolean;
   error: Error | undefined;
   addExercise: (input: { name: string; muscleGroup: TargetMuscleGroup }) => Promise<Exercise>;
+  editExercise: (
+    exerciseId: string,
+    input: { name: string; muscleGroup: TargetMuscleGroup },
+  ) => Promise<Exercise>;
+  removeExercise: (exerciseId: string) => Promise<void>;
 }
 
 export function useExercises(): ExercisesState {
@@ -55,5 +65,23 @@ export function useExercises(): ExercisesState {
     return exercise;
   }, []);
 
-  return { exercises, loading, error, addExercise };
+  const editExercise = useCallback(
+    async (exerciseId: string, input: { name: string; muscleGroup: TargetMuscleGroup }) => {
+      const exercise = await updateExercise(exerciseId, input);
+      setExercises(current =>
+        current
+          .map(item => (item.id === exerciseId ? exercise : item))
+          .sort((a, b) => a.name.localeCompare(b.name)),
+      );
+      return exercise;
+    },
+    [],
+  );
+
+  const removeExercise = useCallback(async (exerciseId: string) => {
+    await deleteExercise(exerciseId);
+    setExercises(current => current.filter(exercise => exercise.id !== exerciseId));
+  }, []);
+
+  return { exercises, loading, error, addExercise, editExercise, removeExercise };
 }

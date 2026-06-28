@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useMemo, useState } from 'react';
 
 import {
   createExerciseSession,
   deleteExerciseSession,
   getExerciseSessions,
+  updateExerciseSession,
 } from '../services/exercise-session-store';
 import type { ExerciseSession, ExerciseSet } from '../types';
 import { sortSessions } from '../utils/session-stats';
@@ -13,6 +15,7 @@ interface ExerciseSessionsState {
   loading: boolean;
   error: Error | undefined;
   saveSession: (set: Omit<ExerciseSet, 'id'>) => Promise<void>;
+  editSession: (sessionId: string, set: Omit<ExerciseSet, 'id'>) => Promise<void>;
   deleteSession: (sessionId: string) => Promise<void>;
 }
 
@@ -33,34 +36,36 @@ export function useExerciseSessions(exerciseId: string): ExerciseSessionsState {
     }
   }, [exerciseId]);
 
-  useEffect(() => {
-    let mounted = true;
+  useFocusEffect(
+    useCallback(() => {
+      let mounted = true;
 
-    async function load() {
-      try {
-        const nextSessions = await getExerciseSessions(exerciseId);
+      async function load() {
+        try {
+          const nextSessions = await getExerciseSessions(exerciseId);
 
-        if (mounted) {
-          setSessions(nextSessions);
-          setError(undefined);
-        }
-      } catch (caught) {
-        if (mounted) {
-          setError(caught instanceof Error ? caught : new Error('Unable to load sessions'));
-        }
-      } finally {
-        if (mounted) {
-          setLoading(false);
+          if (mounted) {
+            setSessions(nextSessions);
+            setError(undefined);
+          }
+        } catch (caught) {
+          if (mounted) {
+            setError(caught instanceof Error ? caught : new Error('Unable to load sessions'));
+          }
+        } finally {
+          if (mounted) {
+            setLoading(false);
+          }
         }
       }
-    }
 
-    load();
+      load();
 
-    return () => {
-      mounted = false;
-    };
-  }, [exerciseId]);
+      return () => {
+        mounted = false;
+      };
+    }, [exerciseId]),
+  );
 
   const saveSession = useCallback(
     async (set: Omit<ExerciseSet, 'id'>) => {
@@ -78,14 +83,23 @@ export function useExerciseSessions(exerciseId: string): ExerciseSessionsState {
     [refresh],
   );
 
+  const editSession = useCallback(
+    async (sessionId: string, set: Omit<ExerciseSet, 'id'>) => {
+      await updateExerciseSession(sessionId, set);
+      await refresh();
+    },
+    [refresh],
+  );
+
   return useMemo(
     () => ({
       sessions: sortSessions(sessions),
       loading,
       error,
       saveSession,
+      editSession,
       deleteSession,
     }),
-    [deleteSession, error, loading, saveSession, sessions],
+    [deleteSession, editSession, error, loading, saveSession, sessions],
   );
 }

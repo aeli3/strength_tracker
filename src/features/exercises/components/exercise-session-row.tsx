@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { MenuView } from '@expo/ui/community/menu';
 
+import { AnimatedPressable } from '@/components/ui/animated-pressable';
 import { Fonts, Spacing, Typography } from '@/constants/theme';
 import { Card } from '@/components/ui/card';
 import { useTheme } from '@/hooks/use-theme';
@@ -10,10 +10,18 @@ import { formatVolume, formatWeight, getTopSet, getVolume } from '../utils/sessi
 interface ExerciseSessionRowProps {
   session: ExerciseSession;
   isLast: boolean;
-  onDelete: (sessionId: string) => void;
+  selected?: boolean;
+  onLongPress: (session: ExerciseSession) => void;
+  onPressStateChange?: (session: ExerciseSession, active: boolean) => void;
 }
 
-export function ExerciseSessionRow({ session, isLast, onDelete }: ExerciseSessionRowProps) {
+export function ExerciseSessionRow({
+  session,
+  isLast,
+  selected = false,
+  onLongPress,
+  onPressStateChange,
+}: ExerciseSessionRowProps) {
   const colors = useTheme();
   const isPr = Boolean(session.isPr);
   const topSet = getTopSet(session);
@@ -34,72 +42,74 @@ export function ExerciseSessionRow({ session, isLast, onDelete }: ExerciseSessio
         {!isLast && <View style={[styles.line, { backgroundColor: colors.backgroundElement }]} />}
       </View>
 
-      <MenuView
-        shouldOpenOnLongPress
-        actions={[
-          {
-            id: 'delete',
-            title: 'Delete Log',
-            image: 'trash',
-            attributes: { destructive: true },
-          },
-        ]}
-        onPressAction={event => {
-          if (event.nativeEvent.event === 'delete') {
-            onDelete(session.id);
-          }
-        }}
-        style={styles.menu}
-      >
-        <Card style={styles.card}>
-          <View style={styles.topRow}>
-            <Text style={[styles.date, { color: colors.textSecondary, fontFamily: Fonts?.sans }]}>
-              {session.dateLabel}
-            </Text>
-            {isPr && (
-              <View style={[styles.prBadge, { backgroundColor: colors.accent }]}>
-                <Text style={[styles.prBadgeText, { color: colors.accentText, fontFamily: Fonts?.sans }]}>
-                  PR
-                </Text>
-              </View>
-            )}
-          </View>
-
-          {topSet ? (
-            <>
-              <Text style={[styles.weight, { color: colors.text, fontFamily: Fonts?.sans }]}>
-                {formatWeight(topSet.weight)} kg
+      <View style={styles.menu}>
+        <AnimatedPressable
+          onLongPress={() => onLongPress(session)}
+          onPressIn={() => onPressStateChange?.(session, true)}
+          onPressOut={() => onPressStateChange?.(session, false)}
+          android_ripple={{ color: colors.backgroundSelected }}
+          pressedOpacity={0.82}
+          pressedScale={0.985}
+          style={styles.pressable}
+        >
+          <Card
+            style={[
+              styles.card,
+              {
+                backgroundColor: selected ? colors.backgroundSelected : colors.backgroundElement,
+                borderColor: selected ? colors.accent : colors.backgroundSelected,
+              },
+            ]}
+          >
+            <View style={styles.topRow}>
+              <Text style={[styles.date, { color: colors.textSecondary, fontFamily: Fonts?.sans }]}>
+                {session.dateLabel}
               </Text>
-              <View style={styles.setPills}>
-                {session.sets.map((set, index) => (
-                  <View
-                    key={set.id ?? `${session.id}-${index}`}
-                    style={[
-                      styles.setPill,
-                      {
-                        backgroundColor: colors.background,
-                        borderColor: isPr ? colors.accent : colors.backgroundSelected,
-                      },
-                    ]}
-                  >
-                    <Text
+              {isPr && (
+                <View style={[styles.prBadge, { backgroundColor: colors.accent }]}>
+                  <Text style={[styles.prBadgeText, { color: colors.accentText, fontFamily: Fonts?.sans }]}>
+                    PR
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            {topSet ? (
+              <>
+                <Text style={[styles.weight, { color: colors.text, fontFamily: Fonts?.sans }]}>
+                  {formatWeight(topSet.weight)} kg
+                </Text>
+                <View style={styles.setPills}>
+                  {session.sets.map((set, index) => (
+                    <View
+                      key={set.id ?? `${session.id}-${index}`}
                       style={[
-                        styles.setPillText,
-                        { color: isPr ? colors.text : colors.textSecondary, fontFamily: Fonts?.sans },
+                        styles.setPill,
+                        {
+                          backgroundColor: colors.background,
+                          borderColor: isPr ? colors.accent : colors.backgroundSelected,
+                        },
                       ]}
                     >
-                      {formatWeight(set.weight)} x {set.reps}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-              <Text style={[styles.volumeText, { color: colors.textSecondary, fontFamily: Fonts?.sans }]}>
-                {formatVolume(volume)} kg vol.
-              </Text>
-            </>
-          ) : null}
-        </Card>
-      </MenuView>
+                      <Text
+                        style={[
+                          styles.setPillText,
+                          { color: isPr ? colors.text : colors.textSecondary, fontFamily: Fonts?.sans },
+                        ]}
+                      >
+                        {formatWeight(set.weight)} x {set.reps}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+                <Text style={[styles.volumeText, { color: colors.textSecondary, fontFamily: Fonts?.sans }]}>
+                  {formatVolume(volume)} kg vol.
+                </Text>
+              </>
+            ) : null}
+          </Card>
+        </AnimatedPressable>
+      </View>
     </View>
   );
 }
@@ -130,7 +140,11 @@ const styles = StyleSheet.create({
   menu: {
     flex: 1,
   },
+  pressable: {
+    width: '100%',
+  },
   card: {
+    width: '100%',
     paddingHorizontal: Spacing.twoAndHalf,
     paddingVertical: Spacing.two,
   },

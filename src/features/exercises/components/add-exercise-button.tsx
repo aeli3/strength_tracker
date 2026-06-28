@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AnimatedPressable } from '@/components/ui/animated-pressable';
 import { Spacing, Typography } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
+import { useTheme, useThemePreference } from '@/hooks/use-theme';
 
 interface AddExerciseButtonProps {
   onPress: () => void;
@@ -12,8 +12,10 @@ interface AddExerciseButtonProps {
 
 export function AddExerciseButton({ onPress }: AddExerciseButtonProps) {
   const colors = useTheme();
+  const { resolvedTheme } = useThemePreference();
   const insets = useSafeAreaInsets();
   const bottomOffset = Math.max(insets.bottom + Spacing.three, Spacing.four);
+  const suppressShadow = Platform.OS === 'android' && resolvedTheme === 'dark';
 
   return (
     <AnimatedPressable
@@ -29,6 +31,8 @@ export function AddExerciseButton({ onPress }: AddExerciseButtonProps) {
           backgroundColor: colors.accent,
           bottom: bottomOffset,
           shadowColor: colors.text,
+          shadowOpacity: suppressShadow ? 0 : 0.18,
+          elevation: suppressShadow ? 0 : 8,
         },
       ]}
     >
@@ -51,9 +55,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.18,
     shadowRadius: 22,
-    elevation: 8,
   },
   fallback: {
     ...Typography.title,

@@ -1,7 +1,16 @@
 import { openDatabaseAsync, type SQLiteDatabase } from 'expo-sqlite';
 
+import { ALL_EXERCISES } from '../data/exercises';
 import { formatSessionDate } from '../utils/session-stats';
-import type { ExerciseHomeStats, ExerciseSet } from '../types';
+import type { Exercise, ExerciseHomeStats, ExerciseSet, TargetMuscleGroup } from '../types';
+
+interface ExerciseRow {
+  id: string;
+  name: string;
+  muscle_group: TargetMuscleGroup;
+  source: 'seed' | 'custom';
+  created_at: string;
+}
 
 interface SessionRow {
   id: string;
@@ -27,6 +36,58 @@ interface CountRow {
 }
 
 let databasePromise: Promise<SQLiteDatabase> | undefined;
+
+export async function getExercises() {
+  const db = await getDatabase();
+  const rows = await db.getAllAsync<ExerciseRow>(
+    `SELECT id, name, muscle_group, source, created_at
+     FROM exercises
+     ORDER BY
+       CASE muscle_group
+         WHEN 'Chest' THEN 1
+         WHEN 'Back' THEN 2
+         WHEN 'Shoulders' THEN 3
+         WHEN 'Arms' THEN 4
+         WHEN 'Core' THEN 5
+         WHEN 'Legs' THEN 6
+         WHEN 'Glutes' THEN 7
+         WHEN 'Cardio' THEN 8
+         ELSE 99
+       END,
+       name COLLATE NOCASE ASC`,
+  );
+
+  return rows.map(mapExerciseRow);
+}
+
+export async function getExerciseById(exerciseId: string) {
+  const db = await getDatabase();
+  const row = await db.getFirstAsync<ExerciseRow>(
+    `SELECT id, name, muscle_group, source, created_at
+     FROM exercises
+     WHERE id = ?`,
+    exerciseId,
+  );
+
+  return row ? mapExerciseRow(row) : undefined;
+}
+
+export async function createExercise(input: { name: string; muscleGroup: TargetMuscleGroup }) {
+  const db = await getDatabase();
+  const createdAt = new Date().toISOString();
+  const id = await createExerciseId(db, input.name, input.muscleGroup);
+
+  await db.runAsync(
+    `INSERT INTO exercises (id, name, muscle_group, source, created_at)
+     VALUES (?, ?, ?, 'custom', ?)`,
+    id,
+    input.name.trim(),
+    input.muscleGroup,
+    createdAt,
+  );
+
+  return { id, name: input.name.trim(), muscleGroup: input.muscleGroup };
+}
 
 export async function getExerciseSessions(exerciseId: string) {
   const db = await getDatabase();
@@ -156,6 +217,14 @@ export async function deleteExerciseSession(sessionId: string) {
 async function getDatabase() {
   databasePromise ??= openDatabaseAsync('strength-tracker.db').then(async db => {
     await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS exercises (
+        id TEXT PRIMARY KEY NOT NULL,
+        name TEXT NOT NULL,
+        muscle_group TEXT NOT NULL,
+        source TEXT NOT NULL DEFAULT 'seed',
+        created_at TEXT NOT NULL
+      );
+
       CREATE TABLE IF NOT EXISTS exercise_sessions (
         id TEXT PRIMARY KEY NOT NULL,
         exercise_id TEXT NOT NULL,
@@ -178,10 +247,65 @@ async function getDatabase() {
         ON exercise_sets (session_id, position ASC);
     `);
 
+    await seedExercises(db);
+
     return db;
   });
 
   return databasePromise;
+}
+
+async function seedExercises(db: SQLiteDatabase) {
+  const seededAt = new Date(0).toISOString();
+
+  await db.withTransactionAsync(async () => {
+    for (const exercise of ALL_EXERCISES) {
+      await db.runAsync(
+        `INSERT OR IGNORE INTO exercises (id, name, muscle_group, source, created_at)
+         VALUES (?, ?, ?, 'seed', ?)`,
+        exercise.id,
+        exercise.name,
+        exercise.muscleGroup,
+        seededAt,
+      );
+    }
+  });
+}
+
+function mapExerciseRow(row: ExerciseRow): Exercise {
+  return {
+    id: row.id,
+    name: row.name,
+    muscleGroup: row.muscle_group,
+  };
+}
+
+async function createExerciseId(
+  db: SQLiteDatabase,
+  name: string,
+  muscleGroup: TargetMuscleGroup,
+) {
+  const slug = `${slugify(muscleGroup)}-${slugify(name)}`.replace(/^-|-$/g, '') || 'custom-exercise';
+
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const suffix = attempt === 0 ? '' : `-${Math.random().toString(36).slice(2, 6)}`;
+    const id = `custom-${slug}${suffix}`;
+    const row = await db.getFirstAsync<CountRow>('SELECT COUNT(*) AS count FROM exercises WHERE id = ?', id);
+
+    if ((row?.count ?? 0) === 0) {
+      return id;
+    }
+  }
+
+  return createId(`custom-${slug}`);
+}
+
+function slugify(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
 }
 
 function createId(prefix: string) {

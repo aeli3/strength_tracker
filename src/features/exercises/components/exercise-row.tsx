@@ -1,7 +1,7 @@
-import { SymbolView } from 'expo-symbols';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { AnimatedPressable } from '@/components/ui/animated-pressable';
+import { ChevronIcon } from '@/components/ui/chevron-icon';
 import { ExerciseIconColors, Fonts, Spacing, Typography } from '@/constants/theme';
 import { useTheme, useThemePreference } from '@/hooks/use-theme';
 import type { Exercise } from '../types';
@@ -53,13 +53,9 @@ export function ExerciseRow({ exercise, onPress, showSeparator = true }: Exercis
         </Text>
       </View>
 
-      <SymbolView
-        name={{ ios: 'chevron.right' }}
-        size={13}
-        tintColor={colors.textSecondary}
-        fallback={<Text style={[styles.chevronText, { color: colors.textSecondary }]}>{'>'}</Text>}
-      />
-
+      <View style={styles.chevronSlot}>
+        <ChevronIcon direction="right" size={13} color={colors.textSecondary} />
+      </View>
     </AnimatedPressable>
   );
 }
@@ -98,9 +94,11 @@ const styles = StyleSheet.create({
     ...Typography.smallLabel,
     marginTop: Spacing.half,
   },
-  chevronText: {
-    fontSize: 16,
-    lineHeight: 20,
+  chevronSlot: {
+    width: 18,
+    height: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
 

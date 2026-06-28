@@ -1,14 +1,40 @@
 import { Stack, useLocalSearchParams } from 'expo-router';
+import { useEffect, useState } from 'react';
 
 import { useTheme } from '@/hooks/use-theme';
 import { Fonts } from '@/constants/theme';
-import { ALL_EXERCISES } from '@/features/exercises/data/exercises';
 import { ExerciseDetailScreen } from '@/features/exercises/components/exercise-detail-screen';
+import { getExerciseById } from '@/features/exercises/services/exercise-session-store';
+import type { Exercise } from '@/features/exercises/types';
 
 export default function ExerciseScreen() {
   const colors = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const exercise = ALL_EXERCISES.find(e => e.id === id);
+  const [exercise, setExercise] = useState<Exercise | undefined>();
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadExercise() {
+      if (!id) {
+        setExercise(undefined);
+        return;
+      }
+
+      setExercise(undefined);
+      const nextExercise = await getExerciseById(id);
+
+      if (mounted) {
+        setExercise(nextExercise);
+      }
+    }
+
+    loadExercise();
+
+    return () => {
+      mounted = false;
+    };
+  }, [id]);
 
   return (
     <>

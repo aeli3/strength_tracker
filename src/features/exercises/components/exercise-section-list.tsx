@@ -2,7 +2,7 @@ import { SectionList, StyleSheet, Text } from 'react-native';
 import Animated, { FadeIn, FadeInDown, LinearTransition } from 'react-native-reanimated';
 
 import { useTheme } from '@/hooks/use-theme';
-import { Fonts, Spacing, Typography } from '@/constants/theme';
+import { BottomTabInset, Fonts, Spacing, Typography } from '@/constants/theme';
 import type { Exercise, ExerciseSection } from '../types';
 import { ExerciseRow } from './exercise-row';
 
@@ -83,6 +83,6 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     flexGrow: 1,
-    paddingBottom: Spacing.six,
+    paddingBottom: BottomTabInset + Spacing.six,
   },
 });

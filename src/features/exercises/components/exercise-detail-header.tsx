@@ -1,8 +1,8 @@
-import { Platform, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 
 import { AnimatedPressable } from '@/components/ui/animated-pressable';
+import { ChevronIcon } from '@/components/ui/chevron-icon';
 import { Fonts, Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import type { Exercise } from '../types';
@@ -25,11 +25,7 @@ export function ExerciseDetailHeader({ exercise }: ExerciseDetailHeaderProps) {
         android_ripple={{ color: colors.backgroundSelected, borderless: true }}
         style={styles.backButton}
       >
-        {Platform.OS === 'ios' ? (
-          <SymbolView name="chevron.left" size={17} tintColor={colors.textSecondary} />
-        ) : (
-          <Text style={[styles.backText, { color: colors.textSecondary }]}>{'<'}</Text>
-        )}
+        <ChevronIcon direction="left" size={17} color={colors.textSecondary} />
       </AnimatedPressable>
       <Text style={[styles.headerTitle, { color: colors.text, fontFamily: Fonts?.sans }]} numberOfLines={1}>
         {exercise.name}
@@ -59,10 +55,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: -Spacing.two,
-  },
-  backText: {
-    fontSize: 18,
-    lineHeight: 22,
   },
   headerTitle: {
     ...Typography.label,

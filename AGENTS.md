@@ -57,15 +57,17 @@ Useful scripts:
 - `src/hooks/use-theme.ts`: current color palette access.
 - `src/components/ui/animated-pressable.tsx`: shared press feedback with native ripple support and subtle scale/opacity animation.
 - `src/components/ui/card.tsx`: shared themed card surface.
+- `src/components/ui/chevron-icon.tsx`: shared cross-platform chevron icon using SF Symbols on iOS and a native drawn fallback elsewhere.
 - `src/components/ui/theme-switch.tsx`: themed switch control.
 - `src/features/settings/components/settings-modal.tsx`: settings bottom sheet.
 - `src/features/exercises`: exercise browsing feature.
 - `src/features/exercises/data/exercises.ts`: temporary static exercise catalog.
 - `src/features/exercises/types/index.ts`: exercise and muscle group types.
 - `src/features/exercises/hooks/use-exercise-filter.ts`: search and muscle filter state.
+- `src/features/exercises/hooks/use-exercises.ts`: SQLite-backed exercise catalog loading and custom exercise creation.
 - `src/features/exercises/hooks/use-exercise-home-stats.ts`: SQLite-backed home summary stats refresh on focus.
 - `src/features/exercises/hooks/use-exercise-sessions.ts`: local exercise session loading, saving, and deletion state.
-- `src/features/exercises/services/exercise-session-store.ts`: Expo SQLite persistence for exercise sessions, sets, and derived home stats.
+- `src/features/exercises/services/exercise-session-store.ts`: Expo SQLite persistence for seeded/custom exercises, exercise sessions, sets, and derived home stats.
 - `src/features/exercises/utils/session-stats.ts`: derived session stats and formatting helpers.
 - `src/features/exercises/components`: exercise list, detail, and log sheet UI components.
 
@@ -161,8 +163,11 @@ stable keys, memoized derived data, and avoid heavy render work inside list item
 
 ## Data Direction
 
-The static catalog in `src/features/exercises/data/exercises.ts` is temporary seed data.
-As soon as user logging exists, separate:
+The static catalog in `src/features/exercises/data/exercises.ts` is seed data. Expo SQLite
+owns the runtime exercise list, with seed exercises inserted via `INSERT OR IGNORE` and
+custom exercises stored in the same `exercises` table.
+
+Keep separate:
 
 - catalog exercise definitions
 - user-created exercises
@@ -170,7 +175,7 @@ As soon as user logging exists, separate:
 - sets/reps/weight records
 - derived progress stats
 
-Do not mix persisted user logs into the static catalog module.
+Do not mix persisted user logs or custom exercises into the static catalog module.
 
 ## Definition Of Done
 

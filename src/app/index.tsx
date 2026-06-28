@@ -1,29 +1,38 @@
+import { router } from 'expo-router';
+import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
 import { Platform, StyleSheet, Text, View } from 'react-native';
-import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { SymbolView } from 'expo-symbols';
 
 import { AnimatedPressable } from '@/components/ui/animated-pressable';
 import { Fonts, Spacing, Typography } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
-import { SearchBar } from '@/features/exercises/components/search-bar';
-import { MuscleGroupFilter } from '@/features/exercises/components/muscle-group-filter';
+import { AddExerciseButton } from '@/features/exercises/components/add-exercise-button';
+import { AddExerciseSheet } from '@/features/exercises/components/add-exercise-sheet';
 import { ExerciseSectionList } from '@/features/exercises/components/exercise-section-list';
 import { HomeStatsBar } from '@/features/exercises/components/home-stats-bar';
+import { MuscleGroupFilter } from '@/features/exercises/components/muscle-group-filter';
+import { SearchBar } from '@/features/exercises/components/search-bar';
 import { useExerciseFilter } from '@/features/exercises/hooks/use-exercise-filter';
 import { useExerciseHomeStats } from '@/features/exercises/hooks/use-exercise-home-stats';
+import { useExercises } from '@/features/exercises/hooks/use-exercises';
+import type { Exercise, TargetMuscleGroup } from '@/features/exercises/types';
 import { SettingsModal } from '@/features/settings/components/settings-modal';
-import type { Exercise } from '@/features/exercises/types';
+import { useTheme } from '@/hooks/use-theme';
 
 export default function HomeScreen() {
   const colors = useTheme();
-  const { query, setQuery, selectedGroup, setSelectedGroup, sections } = useExerciseFilter();
+  const { exercises, addExercise } = useExercises();
+  const { query, setQuery, selectedGroup, setSelectedGroup, sections } = useExerciseFilter(exercises);
   const { stats, loading: statsLoading } = useExerciseHomeStats();
   const [settingsVisible, setSettingsVisible] = useState(false);
+  const [addExerciseVisible, setAddExerciseVisible] = useState(false);
 
   function handleExercisePress(exercise: Exercise) {
     router.push({ pathname: '/exercise/[id]', params: { id: exercise.id } });
+  }
+
+  async function handleAddExercise(input: { name: string; muscleGroup: TargetMuscleGroup }) {
+    await addExercise(input);
   }
 
   return (
@@ -77,6 +86,15 @@ export default function HomeScreen() {
 
       <ExerciseSectionList sections={sections} onExercisePress={handleExercisePress} />
 
+      <AddExerciseButton onPress={() => setAddExerciseVisible(true)} />
+
+      <AddExerciseSheet
+        visible={addExerciseVisible}
+        exercises={exercises}
+        onClose={() => setAddExerciseVisible(false)}
+        onSave={handleAddExercise}
+      />
+
       <SettingsModal visible={settingsVisible} onClose={() => setSettingsVisible(false)} />
     </SafeAreaView>
   );
@@ -116,6 +134,7 @@ const styles = StyleSheet.create({
   settingsText: {
     ...Typography.body,
     fontWeight: '700',
+    paddingBottom: 6,
   },
   searchWrapper: {
     minHeight: 46,

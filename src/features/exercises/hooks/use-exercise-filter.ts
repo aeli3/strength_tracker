@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
-import { ALL_EXERCISES, MUSCLE_GROUPS } from '../data/exercises';
-import type { ExerciseSection, MuscleGroup } from '../types';
+import { MUSCLE_GROUPS } from '../data/exercises';
+import type { Exercise, ExerciseSection, MuscleGroup } from '../types';
 
-export function useExerciseFilter() {
+export function useExerciseFilter(exercises: Exercise[]) {
   const [query, setQuery] = useState('');
   const [selectedGroup, setSelectedGroup] = useState<MuscleGroup>('All');
 
@@ -17,7 +17,7 @@ export function useExerciseFilter() {
   const sections = useMemo<ExerciseSection[]>(() => {
     const q = query.trim().toLowerCase();
 
-    const filtered = ALL_EXERCISES.filter(exercise => {
+    const filtered = exercises.filter(exercise => {
       const matchesQuery = q === '' || exercise.name.toLowerCase().includes(q);
       const matchesGroup =
         selectedGroup === 'All' || exercise.muscleGroup === selectedGroup;
@@ -35,7 +35,7 @@ export function useExerciseFilter() {
         data: filtered.filter(e => e.muscleGroup === group),
       }))
       .filter(section => section.data.length > 0);
-  }, [query, selectedGroup]);
+  }, [exercises, query, selectedGroup]);
 
   return { query, setQuery: handleQueryChange, selectedGroup, setSelectedGroup, sections };
 }
